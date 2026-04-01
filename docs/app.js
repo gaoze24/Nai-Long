@@ -305,9 +305,9 @@ function renderPlayButton() {
   elements.playButton.setAttribute("aria-pressed", String(state.isPlaying));
   elements.playButton.setAttribute(
     "aria-label",
-    state.isPlaying ? "Pause media" : "Play media",
+    state.isPlaying ? "闭嘴" : "开始笑",
   );
-  elements.playButtonLabel.textContent = state.isPlaying ? "Pause" : "Play";
+  elements.playButtonLabel.textContent = state.isPlaying ? "闭嘴" : "开始笑";
 }
 
 function render() {

@@ -2,9 +2,11 @@ const MEDIA_CONFIG = {
   videoSrc: "./assets/character.mp4",
   audioSrc: "./assets/character-audio.mp3",
   preferExternalAudio: true,
+  loopPlayback: true,
   defaultPlaybackRate: 1,
   defaultVolume: 1,
   syncThresholdSeconds: 0.18,
+  loopWrapThresholdSeconds: 0.4,
   syncIntervalMs: 260,
   initialReadyTimeoutMs: 10000,
   playReadyTimeoutMs: 9000,
@@ -17,6 +19,7 @@ const state = {
   isLoading: true,
   hasFatalError: false,
   useExternalAudio: MEDIA_CONFIG.preferExternalAudio,
+  lastVideoTime: 0,
   syncTimerId: null,
   initialLoadWatchdogId: null,
 };
@@ -87,6 +90,7 @@ function wireMediaEvents() {
   });
 
   elements.video.addEventListener("playing", () => {
+    state.lastVideoTime = elements.video.currentTime;
     setLoading(false);
   });
 
@@ -99,6 +103,13 @@ function wireMediaEvents() {
   });
 
   elements.video.addEventListener("ended", () => {
+    if (MEDIA_CONFIG.loopPlayback) {
+      if (state.useExternalAudio) {
+        syncAudioToVideo(true);
+      }
+      return;
+    }
+
     pauseEverything();
     elements.video.currentTime = 0;
     if (state.useExternalAudio) {
@@ -106,8 +117,11 @@ function wireMediaEvents() {
     }
   });
 
+  elements.video.addEventListener("timeupdate", handleVideoLoopBoundary);
+
   elements.video.addEventListener("seeking", () => {
-    syncAudioToVideo();
+    state.lastVideoTime = elements.video.currentTime;
+    syncAudioToVideo(true);
   });
 
   elements.video.addEventListener("ratechange", () => {
@@ -166,6 +180,7 @@ async function startPlaybackFromGesture() {
     );
 
     applyAudioRouting();
+    state.lastVideoTime = elements.video.currentTime;
 
     if (state.useExternalAudio) {
       await alignAudioWithVideo();
@@ -215,12 +230,16 @@ async function handlePlaybackStartError(error) {
 function pauseEverything() {
   elements.video.pause();
   elements.audio.pause();
+  state.lastVideoTime = elements.video.currentTime;
   state.isPlaying = false;
   stopSyncLoop();
   renderPlayButton();
 }
 
 function applyAudioRouting() {
+  elements.video.loop = MEDIA_CONFIG.loopPlayback;
+  elements.audio.loop = MEDIA_CONFIG.loopPlayback && state.useExternalAudio;
+
   // Avoid double audio output when a separate track is active.
   elements.video.muted = state.useExternalAudio;
 }
@@ -251,6 +270,8 @@ function startSyncLoop() {
     return;
   }
 
+  syncAudioToVideo(true);
+
   state.syncTimerId = window.setInterval(() => {
     if (!state.isPlaying) {
       return;
@@ -267,7 +288,7 @@ function stopSyncLoop() {
   }
 }
 
-function syncAudioToVideo() {
+function syncAudioToVideo(force = false) {
   if (!state.useExternalAudio || !Number.isFinite(elements.audio.duration)) {
     return;
   }
@@ -275,11 +296,29 @@ function syncAudioToVideo() {
   const drift = elements.video.currentTime - elements.audio.currentTime;
   const driftAbs = Math.abs(drift);
 
-  if (driftAbs < MEDIA_CONFIG.syncThresholdSeconds) {
+  if (!force && driftAbs < MEDIA_CONFIG.syncThresholdSeconds) {
     return;
   }
 
   elements.audio.currentTime = safeCurrentTime(elements.video.currentTime, elements.audio.duration);
+}
+
+function handleVideoLoopBoundary() {
+  const currentVideoTime = elements.video.currentTime;
+
+  if (!state.isPlaying || !MEDIA_CONFIG.loopPlayback || !state.useExternalAudio) {
+    state.lastVideoTime = currentVideoTime;
+    return;
+  }
+
+  const wrappedToStart =
+    currentVideoTime + MEDIA_CONFIG.loopWrapThresholdSeconds < state.lastVideoTime;
+
+  state.lastVideoTime = currentVideoTime;
+
+  if (wrappedToStart) {
+    syncAudioToVideo(true);
+  }
 }
 
 function waitForMediaReady(mediaElement, timeoutMs, label) {

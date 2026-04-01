@@ -1,6 +1,6 @@
 # Nai-Long
 
-Responsive web app that mimics a mobile-style portrait player UI with a centered character video, a large play/pause action button, a circular settings button, and optional external audio synchronization.
+Responsive web app that mimics a mobile-style portrait player UI with a centered character video, a large play/pause action button, and optional external audio synchronization.
 
 ## Architecture (GitHub Pages Friendly)
 
@@ -69,13 +69,11 @@ The paths are configured in `MEDIA_CONFIG` at the top of `docs/app.js`.
 - Main button toggles play/pause.
 - If external audio is enabled, the app mutes video audio and syncs the separate track.
 - If external audio fails, playback gracefully falls back to video audio.
-- Settings panel lets you toggle external audio, adjust speed, and change volume.
 
 ## Quick Test Checklist
 
 1. Load page and confirm media does not autoplay.
 2. Click/tap Play and confirm video starts.
 3. Click/tap again and confirm pause state.
-4. Open settings and toggle separate audio mode.
-5. Scrub/seek video and confirm sync remains stable when separate audio is enabled.
-6. Temporarily break media path to confirm fallback error messaging.
+4. Scrub/seek video and confirm sync remains stable when separate audio is enabled.
+5. Temporarily break media path to confirm fallback error messaging.

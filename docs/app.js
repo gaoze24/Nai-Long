@@ -2,6 +2,8 @@ const MEDIA_CONFIG = {
   videoSrc: "./assets/character.mp4",
   audioSrc: "./assets/character-audio.mp3",
   preferExternalAudio: true,
+  defaultPlaybackRate: 1,
+  defaultVolume: 1,
   syncThresholdSeconds: 0.18,
   syncIntervalMs: 260,
 };
@@ -10,7 +12,6 @@ const state = {
   isPlaying: false,
   isLoading: true,
   hasFatalError: false,
-  settingsOpen: false,
   useExternalAudio: MEDIA_CONFIG.preferExternalAudio,
   syncTimerId: null,
 };
@@ -20,17 +21,9 @@ const elements = {
   audio: document.getElementById("characterAudio"),
   playButton: document.getElementById("playButton"),
   playButtonLabel: document.getElementById("playButtonLabel"),
-  settingsButton: document.getElementById("settingsButton"),
-  settingsModal: document.getElementById("settingsModal"),
-  settingsPanel: document.querySelector("#settingsModal .modal-panel"),
-  closeSettingsButton: document.getElementById("closeSettingsButton"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingText: document.getElementById("loadingText"),
   errorMessage: document.getElementById("errorMessage"),
-  statusMessage: document.getElementById("statusMessage"),
-  externalAudioToggle: document.getElementById("externalAudioToggle"),
-  rateSelect: document.getElementById("rateSelect"),
-  volumeSlider: document.getElementById("volumeSlider"),
 };
 
 initializeApp();
@@ -39,10 +32,13 @@ function initializeApp() {
   elements.video.src = MEDIA_CONFIG.videoSrc;
   elements.audio.src = MEDIA_CONFIG.audioSrc;
 
+  elements.video.playbackRate = MEDIA_CONFIG.defaultPlaybackRate;
+  elements.audio.playbackRate = MEDIA_CONFIG.defaultPlaybackRate;
+  elements.video.volume = MEDIA_CONFIG.defaultVolume;
+  elements.audio.volume = MEDIA_CONFIG.defaultVolume;
+
   elements.video.load();
   elements.audio.load();
-
-  elements.externalAudioToggle.checked = state.useExternalAudio;
   applyAudioRouting();
 
   wireMediaEvents();
@@ -53,7 +49,6 @@ function initializeApp() {
 function wireMediaEvents() {
   elements.video.addEventListener("canplay", () => {
     setLoading(false);
-    setStatus("Ready to play");
   });
 
   elements.video.addEventListener("waiting", () => {
@@ -71,7 +66,6 @@ function wireMediaEvents() {
       state.isPlaying = false;
       stopSyncLoop();
       renderPlayButton();
-      setStatus("Paused");
     }
   });
 
@@ -81,18 +75,15 @@ function wireMediaEvents() {
     if (state.useExternalAudio) {
       elements.audio.currentTime = 0;
     }
-    setStatus("Playback finished");
   });
 
   elements.video.addEventListener("seeking", () => {
-    syncAudioToVideo("seek");
+    syncAudioToVideo();
   });
 
   elements.video.addEventListener("ratechange", () => {
-    const rate = elements.video.playbackRate;
-    elements.rateSelect.value = String(rate);
     if (state.useExternalAudio) {
-      elements.audio.playbackRate = rate;
+      elements.audio.playbackRate = elements.video.playbackRate;
     }
   });
 
@@ -103,76 +94,16 @@ function wireMediaEvents() {
   elements.audio.addEventListener("error", () => {
     if (state.useExternalAudio) {
       state.useExternalAudio = false;
-      elements.externalAudioToggle.checked = false;
       applyAudioRouting();
-      setStatus("External audio unavailable. Using video audio only.");
+      elements.audio.pause();
+      stopSyncLoop();
+      console.warn("External audio unavailable. Using video audio only.");
     }
   });
 }
 
 function wireUiEvents() {
   elements.playButton.addEventListener("click", handlePlayToggle);
-
-  elements.settingsButton.addEventListener("click", toggleSettingsModal);
-
-  elements.closeSettingsButton.addEventListener("click", closeSettingsModal);
-
-  // Close when clicking/tapping outside both the panel and its side toggle button.
-  document.addEventListener("pointerdown", (event) => {
-    if (!state.settingsOpen) {
-      return;
-    }
-
-    if (!(event.target instanceof Node)) {
-      return;
-    }
-
-    const clickedPanel = elements.settingsPanel.contains(event.target);
-    const clickedSettingsButton = elements.settingsButton.contains(event.target);
-
-    if (!clickedPanel && !clickedSettingsButton) {
-      closeSettingsModal({ focusButton: false });
-    }
-  });
-
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && state.settingsOpen) {
-      closeSettingsModal();
-    }
-  });
-
-  elements.externalAudioToggle.addEventListener("change", () => {
-    state.useExternalAudio = elements.externalAudioToggle.checked;
-    applyAudioRouting();
-
-    if (!state.useExternalAudio) {
-      elements.audio.pause();
-      stopSyncLoop();
-      setStatus("Using video audio");
-      return;
-    }
-
-    if (state.isPlaying) {
-      void startExternalAudioDuringPlayback();
-    } else {
-      setStatus("Separate audio enabled");
-    }
-  });
-
-  elements.rateSelect.addEventListener("change", () => {
-    const nextRate = Number(elements.rateSelect.value);
-    elements.video.playbackRate = nextRate;
-    if (state.useExternalAudio) {
-      elements.audio.playbackRate = nextRate;
-    }
-    setStatus(`Playback speed ${nextRate}x`);
-  });
-
-  elements.volumeSlider.addEventListener("input", () => {
-    const nextVolume = Number(elements.volumeSlider.value);
-    elements.video.volume = nextVolume;
-    elements.audio.volume = nextVolume;
-  });
 }
 
 async function handlePlayToggle() {
@@ -182,7 +113,6 @@ async function handlePlayToggle() {
 
   if (state.isPlaying) {
     pauseEverything();
-    setStatus("Paused");
     return;
   }
 
@@ -202,9 +132,6 @@ async function startPlaybackFromGesture() {
     await waitForCanPlay(elements.video, 9000);
     applyAudioRouting();
 
-    elements.video.playbackRate = Number(elements.rateSelect.value);
-    elements.audio.playbackRate = elements.video.playbackRate;
-
     if (state.useExternalAudio) {
       await alignAudioWithVideo();
       await Promise.all([elements.video.play(), elements.audio.play()]);
@@ -217,25 +144,8 @@ async function startPlaybackFromGesture() {
     state.isPlaying = true;
     setLoading(false);
     renderPlayButton();
-    setStatus("Playing");
   } catch (error) {
     await handlePlaybackStartError(error);
-  }
-}
-
-async function startExternalAudioDuringPlayback() {
-  try {
-    await waitForCanPlay(elements.audio, 6000);
-    await alignAudioWithVideo();
-    await elements.audio.play();
-    startSyncLoop();
-    setStatus("Separate audio synced");
-  } catch (error) {
-    state.useExternalAudio = false;
-    elements.externalAudioToggle.checked = false;
-    applyAudioRouting();
-    setStatus("Could not start separate audio. Using video audio only.");
-    console.warn("External audio failed:", error);
   }
 }
 
@@ -244,7 +154,6 @@ async function handlePlaybackStartError(error) {
 
   if (state.useExternalAudio) {
     state.useExternalAudio = false;
-    elements.externalAudioToggle.checked = false;
     applyAudioRouting();
 
     try {
@@ -252,7 +161,6 @@ async function handlePlaybackStartError(error) {
       state.isPlaying = true;
       setLoading(false);
       renderPlayButton();
-      setStatus("Playing with video audio only");
       return;
     } catch (videoOnlyError) {
       console.warn("Video-only fallback failed:", videoOnlyError);
@@ -261,7 +169,6 @@ async function handlePlaybackStartError(error) {
 
   state.isPlaying = false;
   setLoading(false);
-  setStatus("Playback blocked. Tap Play again or check browser settings.");
   renderPlayButton();
 }
 
@@ -304,7 +211,7 @@ function startSyncLoop() {
       return;
     }
 
-    syncAudioToVideo("interval");
+    syncAudioToVideo();
   }, MEDIA_CONFIG.syncIntervalMs);
 }
 
@@ -315,7 +222,7 @@ function stopSyncLoop() {
   }
 }
 
-function syncAudioToVideo(reason) {
+function syncAudioToVideo() {
   if (!state.useExternalAudio || !Number.isFinite(elements.audio.duration)) {
     return;
   }
@@ -328,10 +235,6 @@ function syncAudioToVideo(reason) {
   }
 
   elements.audio.currentTime = safeCurrentTime(elements.video.currentTime, elements.audio.duration);
-
-  if (reason === "seek") {
-    setStatus("Synced after seek");
-  }
 }
 
 function waitForCanPlay(mediaElement, timeoutMs) {
@@ -382,7 +285,6 @@ function showFatalError(message) {
   elements.errorMessage.hidden = false;
   elements.playButton.disabled = true;
   setLoading(false);
-  setStatus(message);
   renderPlayButton();
 }
 
@@ -398,10 +300,6 @@ function setLoading(isLoading, text = "Loading media...") {
   elements.loadingOverlay.classList.toggle("is-hidden", !isLoading);
 }
 
-function setStatus(message) {
-  elements.statusMessage.textContent = message;
-}
-
 function renderPlayButton() {
   elements.playButton.classList.toggle("is-playing", state.isPlaying);
   elements.playButton.setAttribute("aria-pressed", String(state.isPlaying));
@@ -412,44 +310,7 @@ function renderPlayButton() {
   elements.playButtonLabel.textContent = state.isPlaying ? "Pause" : "Play";
 }
 
-function renderModal() {
-  elements.settingsModal.classList.toggle("is-open", state.settingsOpen);
-  elements.settingsModal.setAttribute("aria-hidden", String(!state.settingsOpen));
-  elements.settingsButton.setAttribute("aria-expanded", String(state.settingsOpen));
-}
-
 function render() {
   renderPlayButton();
-  renderModal();
   setLoading(state.isLoading);
-}
-
-function openSettingsModal() {
-  state.settingsOpen = true;
-  renderModal();
-  elements.closeSettingsButton.focus();
-}
-
-function closeSettingsModal(options = {}) {
-  const { focusButton = true } = options;
-
-  if (!state.settingsOpen) {
-    return;
-  }
-
-  state.settingsOpen = false;
-  renderModal();
-
-  if (focusButton) {
-    elements.settingsButton.focus();
-  }
-}
-
-function toggleSettingsModal() {
-  if (state.settingsOpen) {
-    closeSettingsModal({ focusButton: false });
-    return;
-  }
-
-  openSettingsModal();
 }

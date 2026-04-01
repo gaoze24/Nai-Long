@@ -12,11 +12,6 @@
   <body>
     <main class="page-shell">
       <section class="app-frame" aria-label="Character player app">
-        <header class="top-bar">
-          <h1 class="app-title">Character Player</h1>
-          <p class="app-subtitle">Tap play to begin</p>
-        </header>
-
         <section class="media-stage" aria-live="polite">
           <div class="video-wrap" id="videoWrap">
             <video
@@ -56,73 +51,6 @@
             <span id="playButtonLabel">Play</span>
           </button>
         </footer>
-
-        <p id="statusMessage" class="status-message" aria-live="polite">Loading media...</p>
-      </section>
-
-      <button
-        id="settingsButton"
-        class="control-button settings-button side-settings-button"
-        type="button"
-        aria-label="Toggle settings"
-        aria-controls="settingsModal"
-        aria-expanded="false"
-      >
-        <span class="settings-glyph" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </span>
-      </button>
-
-      <section
-        id="settingsModal"
-        class="settings-modal"
-        role="dialog"
-        aria-modal="false"
-        aria-hidden="true"
-        aria-labelledby="settingsTitle"
-      >
-        <div class="modal-panel">
-          <header class="modal-header">
-            <h2 id="settingsTitle">Settings</h2>
-            <button
-              id="closeSettingsButton"
-              class="close-settings"
-              type="button"
-              aria-label="Close settings"
-            >
-              Close
-            </button>
-          </header>
-
-          <label class="setting-item switch-item" for="externalAudioToggle">
-            <span>Use separate audio track</span>
-            <input id="externalAudioToggle" type="checkbox" />
-          </label>
-
-          <label class="setting-item" for="rateSelect">
-            <span>Playback speed</span>
-            <select id="rateSelect">
-              <option value="0.75">0.75x</option>
-              <option value="1" selected>1x</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-            </select>
-          </label>
-
-          <label class="setting-item" for="volumeSlider">
-            <span>Volume</span>
-            <input
-              id="volumeSlider"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value="1"
-            />
-          </label>
-        </div>
       </section>
     </main>
 

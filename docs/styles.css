@@ -44,6 +44,8 @@ body {
   width: min(100%, 36rem);
   display: flex;
   justify-content: center;
+  position: relative;
+  isolation: isolate;
 }
 
 /*
@@ -245,14 +247,21 @@ body {
 }
 
 .settings-button {
-  width: var(--control-height);
-  height: var(--control-height);
+  width: clamp(2.55rem, 7.2vw, 3.1rem);
+  height: clamp(2.55rem, 7.2vw, 3.1rem);
   border-radius: 50%;
   background: #111318;
   color: #ffffff;
   display: grid;
   place-items: center;
-  box-shadow: 0 0.8rem 1.4rem rgba(17, 19, 24, 0.28);
+  box-shadow: 0 0.62rem 1.1rem rgba(17, 19, 24, 0.22);
+}
+
+.side-settings-button {
+  position: absolute;
+  right: clamp(-0.92rem, -2vw, -0.55rem);
+  bottom: clamp(6.6rem, 17vh, 9.2rem);
+  z-index: 14;
 }
 
 .settings-glyph {
@@ -284,34 +293,37 @@ body {
 }
 
 .settings-modal {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: end center;
-  padding: 0.9rem;
+  position: absolute;
+  right: clamp(0.2rem, 1.2vw, 0.6rem);
+  bottom: clamp(10.2rem, 25vh, 13.7rem);
+  width: min(78vw, 18.5rem);
+  z-index: 13;
+  opacity: 0;
+  transform: translateX(0.18rem) translateY(0.42rem) scale(0.98);
+  transform-origin: 92% 100%;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 180ms ease;
 }
 
-.modal-backdrop {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  background: rgba(11, 15, 21, 0.48);
-  cursor: pointer;
+.settings-modal.is-open {
+  opacity: 1;
+  transform: translateX(0) translateY(0) scale(1);
+  pointer-events: auto;
 }
 
 .modal-panel {
-  width: min(100%, 30rem);
+  width: 100%;
   position: relative;
-  z-index: 1;
+  z-index: 2;
   background: var(--panel);
-  border-radius: 1rem;
+  border-radius: 0.92rem;
+  border: 1px solid rgba(225, 232, 241, 0.95);
   box-shadow: 0 1.25rem 2.25rem rgba(11, 15, 21, 0.22);
   padding: clamp(0.95rem, 2.8vw, 1.3rem);
   display: grid;
   gap: 0.8rem;
+  max-height: min(68dvh, 23.5rem);
+  overflow: auto;
 }
 
 .modal-header {
@@ -334,6 +346,11 @@ body {
   font-weight: 600;
   padding: 0.44rem 0.72rem;
   cursor: pointer;
+}
+
+.close-settings:focus-visible {
+  outline: 2px solid #141820;
+  outline-offset: 2px;
 }
 
 .setting-item {
@@ -380,11 +397,32 @@ select {
   .video-wrap {
     height: min(100%, clamp(14.5rem, 50vh, 25rem));
   }
+
+  .side-settings-button {
+    bottom: clamp(5.8rem, 19vh, 7.5rem);
+  }
+
+  .settings-modal {
+    bottom: clamp(8rem, 26vh, 10.4rem);
+  }
 }
 
 @media (min-width: 900px) {
   .app-frame {
     width: min(100%, clamp(20rem, 38vw, 28rem));
+  }
+}
+
+@media (max-width: 700px) {
+  .side-settings-button {
+    right: clamp(0.18rem, 2vw, 0.48rem);
+    bottom: clamp(6.1rem, 16vh, 8.4rem);
+  }
+
+  .settings-modal {
+    right: clamp(0.18rem, 2vw, 0.48rem);
+    bottom: clamp(9.2rem, 23vh, 11.6rem);
+    width: min(calc(100vw - 1.5rem), 18rem);
   }
 }
 

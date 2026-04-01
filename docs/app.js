@@ -22,7 +22,7 @@ const elements = {
   playButtonLabel: document.getElementById("playButtonLabel"),
   settingsButton: document.getElementById("settingsButton"),
   settingsModal: document.getElementById("settingsModal"),
-  modalBackdrop: document.getElementById("modalBackdrop"),
+  settingsPanel: document.querySelector("#settingsModal .modal-panel"),
   closeSettingsButton: document.getElementById("closeSettingsButton"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingText: document.getElementById("loadingText"),
@@ -113,14 +113,27 @@ function wireMediaEvents() {
 function wireUiEvents() {
   elements.playButton.addEventListener("click", handlePlayToggle);
 
-  elements.settingsButton.addEventListener("click", () => {
-    state.settingsOpen = true;
-    renderModal();
-    elements.closeSettingsButton.focus();
-  });
+  elements.settingsButton.addEventListener("click", toggleSettingsModal);
 
   elements.closeSettingsButton.addEventListener("click", closeSettingsModal);
-  elements.modalBackdrop.addEventListener("click", closeSettingsModal);
+
+  // Close when clicking/tapping outside both the panel and its side toggle button.
+  document.addEventListener("pointerdown", (event) => {
+    if (!state.settingsOpen) {
+      return;
+    }
+
+    if (!(event.target instanceof Node)) {
+      return;
+    }
+
+    const clickedPanel = elements.settingsPanel.contains(event.target);
+    const clickedSettingsButton = elements.settingsButton.contains(event.target);
+
+    if (!clickedPanel && !clickedSettingsButton) {
+      closeSettingsModal({ focusButton: false });
+    }
+  });
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && state.settingsOpen) {
@@ -400,7 +413,9 @@ function renderPlayButton() {
 }
 
 function renderModal() {
-  elements.settingsModal.hidden = !state.settingsOpen;
+  elements.settingsModal.classList.toggle("is-open", state.settingsOpen);
+  elements.settingsModal.setAttribute("aria-hidden", String(!state.settingsOpen));
+  elements.settingsButton.setAttribute("aria-expanded", String(state.settingsOpen));
 }
 
 function render() {
@@ -409,8 +424,32 @@ function render() {
   setLoading(state.isLoading);
 }
 
-function closeSettingsModal() {
+function openSettingsModal() {
+  state.settingsOpen = true;
+  renderModal();
+  elements.closeSettingsButton.focus();
+}
+
+function closeSettingsModal(options = {}) {
+  const { focusButton = true } = options;
+
+  if (!state.settingsOpen) {
+    return;
+  }
+
   state.settingsOpen = false;
   renderModal();
-  elements.settingsButton.focus();
+
+  if (focusButton) {
+    elements.settingsButton.focus();
+  }
+}
+
+function toggleSettingsModal() {
+  if (state.settingsOpen) {
+    closeSettingsModal({ focusButton: false });
+    return;
+  }
+
+  openSettingsModal();
 }
